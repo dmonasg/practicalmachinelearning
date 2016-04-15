@@ -1,0 +1,83 @@
+---
+title: "Machine Learning Class Assignment"
+author: "dg"
+date: "Tuesday, March 29, 2016"
+output: html_document
+---
+
+#Summary
+
+In this exercise I analyze Human Activity Recognition data from Ugulino, et al^1. The objective is to predict exercise behaviors (the "classe" variable) based on data from sensors worn by human subjects.  After inspecting and cleaning the data, I selected variables that have some reasonably hypothesized relationship to the classe variable. I fit a model on the training data using random forest with k-folds cross validation, and obtained a high degree of accuracy.
+
+#Load libraries and read data
+
+
+```{r}
+library(caret)
+```
+
+
+```{r}
+training <- read.csv("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+testing <- read.csv("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+```
+
+#Clean data
+
+An initial inspection of the training set (via summary, not shown here) reveals 160 variables, but many have mostly NA, which won't be useful for analysis.
+
+I subset the training set by removing columns with mostly NA's. Upon further inspection of the training data following subset, I notice a large number of of variables with undefined factor values (#DIV/0). These cannot be used as part of the analysis. Rather than creating a feature vector to use in the training model, I subset the training set further by selecting out variables with undefined factor values.
+
+In addition, I also select out variables that I don't think will be relevant to the analysis.  These include:  X, the various timestamp variables, and the new_window variables.
+
+
+```{r}
+sub_training <- training[sapply(training, function(training) !any(is.na(training)))]
+#select out X plus any variable with undefined factor values - #DIV/0
+sub_training1 <- subset(sub_training, select=-c(X,raw_timestamp_part_1,
+                                                raw_timestamp_part_2,
+                                                cvtd_timestamp,new_window,
+                                                kurtosis_roll_belt, kurtosis_picth_belt,
+                                                kurtosis_yaw_belt,skewness_roll_belt,
+                                                skewness_roll_belt.1,max_yaw_belt,
+                                                min_yaw_belt,
+                                                skewness_yaw_belt,amplitude_yaw_belt,
+                                                kurtosis_roll_arm, kurtosis_picth_arm,
+                                                kurtosis_yaw_arm, skewness_roll_arm,
+                                                skewness_pitch_arm,skewness_yaw_arm,
+                                                kurtosis_roll_dumbbell,
+                                                kurtosis_picth_dumbbell,
+                                                kurtosis_yaw_dumbbell,
+                                                skewness_roll_dumbbell,
+                                                skewness_pitch_dumbbell,
+                                                skewness_yaw_dumbbell, max_yaw_dumbbell,
+                                                min_yaw_dumbbell,
+                                                amplitude_yaw_dumbbell,
+                                                kurtosis_roll_forearm,
+                                                kurtosis_picth_forearm,
+                                                kurtosis_yaw_forearm,
+                                                skewness_roll_forearm,
+                                                skewness_pitch_forearm,
+                                                skewness_yaw_forearm,max_yaw_forearm,
+                                                min_yaw_forearm,
+                                                amplitude_yaw_forearm))
+```
+
+#Fit the model
+
+Due to the complexity of the data and a desire for accuracy, I decided to fit a random forest model, using k-folds cross validation with 5 partitions.  I would have used 10 partitions, but was having memory issues on my computer, so I reduced the partitions to five.
+
+
+```{r}
+train_control <- trainControl(method="cv", number=5)
+model <- train(classe ~ ., data=sub_training1,trControl=train_control, method="rf")
+```
+
+The resulting out-of-sample error rate is less than 0.2% (99.8% accuracy).
+
+```{r}
+print(model)
+pred <- predict(model,testing)
+```
+
+^1 Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6
